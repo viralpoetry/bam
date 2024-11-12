@@ -1,89 +1,123 @@
-
-'''
-Working example of Bidirectional associative memory
+"""
+Bidirectional Associative Memory (BAM) Implementation
 https://en.wikipedia.org/wiki/Bidirectional_associative_memory
-'''
+"""
 
-class BAM(object):
-    def __init__(self, data):
-        self.AB = []
-        # store associations in bipolar form to the array
-        for item in data:
-            self.AB.append(
-                [self.__l_make_bipolar(item[0]),
-                 self.__l_make_bipolar(item[1])]
-                )
+import pprint
+from typing import List
+
+
+class BAM:
+    def __init__(self, data: List[List[List[int]]]) -> None:
+        """
+        Initializes the BAM with provided association pairs in bipolar form.
+
+        Args:
+            data (List[List[List[int]]]): List of input-output vector pairs in binary form.
+        """
+        # Store associations in bipolar form and determine matrix dimensions
+        self.AB = [
+            [self._to_bipolar(pair[0]), self._to_bipolar(pair[1])] for pair in data
+        ]
         self.len_x = len(self.AB[0][1])
         self.len_y = len(self.AB[0][0])
-        # create empty BAM matrix
-        self.M = [[0 for x in range(self.len_x)] for x in range(self.len_y)]
-        # compute BAM matrix from associations
-        self.__create_bam()
+        # Initialize empty BAM matrix
+        self.M = [[0] * self.len_x for _ in range(self.len_y)]
+        # Compute BAM matrix based on the associations
+        self._create_bam_matrix()
 
-    def __create_bam(self):
-        '''Bidirectional associative memory'''
-        for assoc_pair in self.AB:
-          X = assoc_pair[0]
-          Y = assoc_pair[1]
-         # calculate M
-          for idx, xi in enumerate(X):
-            for idy, yi in enumerate(Y):
-              self.M[idx][idy] += xi * yi
+    def _create_bam_matrix(self) -> None:
+        """
+        Constructs the BAM matrix by applying Hebbian learning on the associations.
+        """
+        for x_vec, y_vec in self.AB:
+            for i, x_val in enumerate(x_vec):
+                for j, y_val in enumerate(y_vec):
+                    self.M[i][j] += x_val * y_val
 
-    def get_assoc(self, A):
-        '''Return association for input vector A'''
-        A = self.__mult_mat_vec(A)
-        return self.__threshold(A)
+    def get_association(self, A: List[int]) -> List[int]:
+        """
+        Returns the associated output vector for a given input vector using BAM.
 
-    def get_bam_matrix(self):
-        '''Return BAM matrix'''
+        Args:
+            A (List[int]): Input vector in binary form.
+
+        Returns:
+            List[int]: Associated output vector in binary form.
+        """
+        bipolar_A = self._mult_mat_vec(A)
+        return self._threshold(bipolar_A)
+
+    def get_bam_matrix(self) -> List[List[int]]:
+        """
+        Retrieves the BAM matrix.
+
+        Returns:
+            List[List[int]]: The BAM matrix.
+        """
         return self.M
 
-    def __mult_mat_vec(self, vec):
-        '''Multiply imput vector with BAM matrix'''
+    def _mult_mat_vec(self, vec: List[int]) -> List[int]:
+        """
+        Multiplies the BAM matrix with an input vector.
+
+        Args:
+            vec (List[int]): Input vector in binary form.
+
+        Returns:
+            List[int]: Resulting vector after multiplication with BAM matrix.
+        """
         v_res = [0] * self.len_x
-        for x in range(self.len_x):
-            for y in range(self.len_y):
-                v_res[x] += vec[y] * self.M[y][x]
+        for i in range(self.len_y):
+            for j in range(self.len_x):
+                v_res[j] += vec[i] * self.M[i][j]
         return v_res
 
-    def __threshold(self, vec):
-        '''Transform vector to [0, 1]'''
-        ret_vec = []
-        for i in vec:
-            if i < 0:
-                ret_vec.append(0)
-            else:
-                ret_vec.append(1)
-        return ret_vec
-    
-    def __l_make_bipolar(self, vec):
-        '''Transform vector to bipolar form [-1, 1]'''
-        ret_vec = []
-        for item in vec:
-            if item == 0:
-                ret_vec.append(-1)
-            else:
-                ret_vec.append(1)
-        return ret_vec
+    def _threshold(self, vec: List[int]) -> List[int]:
+        """
+        Applies a threshold to transform a bipolar vector into binary form.
 
-    
-    
+        Args:
+            vec (List[int]): Input vector in bipolar form.
+
+        Returns:
+            List[int]: Output vector in binary form.
+        """
+        return [1 if val >= 0 else 0 for val in vec]
+
+    def _to_bipolar(self, vec: List[int]) -> List[int]:
+        """
+        Converts a binary vector to bipolar form.
+
+        Args:
+            vec (List[int]): Binary input vector.
+
+        Returns:
+            List[int]: Converted bipolar vector.
+        """
+        return [1 if val == 1 else -1 for val in vec]
+
+
 if __name__ == "__main__":
-    data_pairs  = [
+    # Define sample data pairs
+    data_pairs = [
         [[1, 0, 1, 0, 1, 0], [1, 1, 0, 0]],
-        [[1, 1, 1, 0, 0, 0], [1, 0, 1, 0]]
-        ]
-    b = BAM(data_pairs)
+        [[1, 1, 1, 0, 0, 0], [1, 0, 1, 0]],
+    ]
 
-    import pprint
+    # Initialize BAM with data pairs
+    bam = BAM(data_pairs)
+
+    # Pretty print the BAM matrix
     pp = pprint.PrettyPrinter(indent=4)
-    print 'Matrix: '
-    pp.pprint(b.get_bam_matrix())
-    print '\n'
-    print '[1, 0, 1, 0, 1, 0] ---> ', b.get_assoc([1, 0, 1, 0, 1, 0])
-    print '[1, 1, 1, 0, 0, 0] ---> ', b.get_assoc([1, 1, 1, 0, 0, 0])
+    print("BAM Matrix:")
+    pp.pprint(bam.get_bam_matrix())
 
+    # Test associations
+    test_inputs = [
+        [1, 0, 1, 0, 1, 0],
+        [1, 1, 1, 0, 0, 0],
+    ]
 
-
-
+    for input_vector in test_inputs:
+        print(f"{input_vector} ---> {bam.get_association(input_vector)}")
